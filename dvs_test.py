@@ -3,7 +3,9 @@ import tonic
 import tonic.transforms as transforms
 import torch
 import torch.nn as nn
+import torchvision
 from torch.utils.data import DataLoader
+from tonic import DiskCachedDataset
 
 import snntorch as snn
 from snntorch import functional as SF
@@ -38,16 +40,19 @@ testset = tonic.datasets.DVSGesture(save_to='./data', transform=frame_transform,
 TRAINING OUR NETWORK USING FRAMES CREATED FROM EVENTS
 #####################################################
 """
-# transform = tonic.transforms.Compose([torch.from_numpy,torchvision.transforms.RandomRotation([-10,10])])
 
-# cached_trainset = CachedDataset(trainset, transform=transform, cache_path='./cache/nmnist/train')
+transform = tonic.transforms.Compose([torch.from_numpy,
+                                      torchvision.transforms.RandomRotation([-10,10])])
+
+cached_trainset = DiskCachedDataset(trainset, transform=transform, cache_path='./cache/dvs/train')
 
 # no augmentations for the testset
-# cached_testset = CachedDataset(testset, cache_path='./cache/nmnist/test')
+cached_testset = DiskCachedDataset(testset, cache_path='./cache/dvs/test')
+
 
 batch_size = 128
-trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
-testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors)
+trainloader = DataLoader(cached_trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
+testloader = DataLoader(cached_testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors)
 
 """
 DEFINING OUR NETWORK

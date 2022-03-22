@@ -3,7 +3,9 @@ import tonic
 import tonic.transforms as transforms
 import torch
 import torch.nn as nn
+import torchvision
 from torch.utils.data import DataLoader
+from tonic import DiskCachedDataset
 
 import snntorch as snn
 from snntorch import functional as SF
@@ -26,6 +28,7 @@ TRANSFORMATIONS
 sensor_size = tonic.datasets.NMNIST.sensor_size
 
 # Denoise removes isolated, one-off events
+
 # time_window
 frame_transform = transforms.Compose([transforms.Denoise(filter_time=10000),
                                       transforms.ToFrame(sensor_size=sensor_size,
@@ -34,6 +37,15 @@ frame_transform = transforms.Compose([transforms.Denoise(filter_time=10000),
 
 trainset = tonic.datasets.NMNIST(save_to='./data', transform=frame_transform, train=True)
 testset = tonic.datasets.NMNIST(save_to='./data', transform=frame_transform, train=False)
+
+transform = tonic.transforms.Compose([torch.from_numpy,
+                                      torchvision.transforms.RandomRotation([-10,10])])
+
+cached_trainset = DiskCachedDataset(trainset, transform=transform, cache_path='./cache/nmnist/train')
+
+# no augmentations for the testset
+cached_testset = DiskCachedDataset(testset, cache_path='./cache/nmnist/test')
+
 
 """
 #####################################################
