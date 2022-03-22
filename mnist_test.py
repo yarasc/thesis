@@ -60,8 +60,8 @@ TRAINING OUR NETWORK USING FRAMES CREATED FROM EVENTS
 # cached_testset = CachedDataset(testset, cache_path='./cache/nmnist/test')
 
 batch_size = 128
-trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
-testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors)
+trainloader = DataLoader(cached_trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
+testloader = DataLoader(cached_testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors)
 
 """
 DEFINING OUR NETWORK
