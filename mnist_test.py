@@ -79,16 +79,9 @@ beta = 0.9  # neuron decay rate
 grad = surrogate.fast_sigmoid()
 
 #  Initialize Network
-net = nn.Sequential(nn.Linear(34, 12), #Conv2d(input,weight,stride) #Linear(input,output)
-                    #nn.MaxPool2d(2), #kernel size (stride)
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True),
-                    nn.Linear(12, 32),
-                    #nn.MaxPool2d(2),
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True),
-                    nn.Flatten(),
-                    nn.Linear(34*8*8, 10),
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True),
-
+net = nn.Sequential(nn.Flatten(),
+                    nn.Linear(34*34*2, 10),
+                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
                     ).to(device)
 
 

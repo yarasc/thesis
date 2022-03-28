@@ -12,14 +12,18 @@ from snntorch import functional as SF
 from snntorch import surrogate
 from snntorch import utils
 
+
+"""
+Feedforward NN with LIF
+based on Tutorial 7 SNNTorch
+"""
+
+
 """
 #########################################
 USING TONIC TO LOAD NEUROMORPHIC DATASETS
 #########################################
 """
-dataset = tonic.datasets.DVSGesture(save_to='./data', train=True)
-events, target = dataset[0]
-
 """
 TRANSFORMATIONS
 """
@@ -44,15 +48,15 @@ TRAINING OUR NETWORK USING FRAMES CREATED FROM EVENTS
 transform = tonic.transforms.Compose([torch.from_numpy,
                                       torchvision.transforms.RandomRotation([-10,10])])
 
-cached_trainset = DiskCachedDataset(trainset, transform=transform, cache_path='./cache/dvs/train')
+#cached_trainset = DiskCachedDataset(trainset, transform=transform, cache_path='./cache/dvs/train')
 
 # no augmentations for the testset
-cached_testset = DiskCachedDataset(testset, cache_path='./cache/dvs/test')
+#cached_testset = DiskCachedDataset(testset, cache_path='./cache/dvs/test')
 
 
-batch_size = 128
-trainloader = DataLoader(cached_trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
-testloader = DataLoader(cached_testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors)
+batch_size = 16
+trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
+#testloader = DataLoader(cached_testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
 
 """
 DEFINING OUR NETWORK
@@ -70,15 +74,10 @@ beta = 0.9  # neuron decay rate
 grad = surrogate.fast_sigmoid()
 
 #  Initialize Network
-net = nn.Sequential(nn.Linear(34, 12), #Conv2d(input,weight,stride) #Linear(input,output)
-                    #nn.MaxPool2d(2), #kernel size (stride)
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True),
-                    nn.Linear(12, 32),
-                    #nn.MaxPool2d(2),
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True),
-                    nn.Flatten(),
-                    nn.Linear(34*8*8, 10),
-                    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True),
+net = nn.Sequential(
+                        nn.Flatten(),
+                        nn.Linear(32*32*32, 11),
+                        snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True),
 
                     ).to(device)
 
@@ -110,9 +109,9 @@ acc_hist = []
 
 # training loop
 for epoch in range(num_epochs):
-    for i, (data, targets) in enumerate(iter(trainloader)):
+    for i, (data, targets) in enumerate(trainloader, 0):
+        print("test")
         data = data.to(device)
-
         targets = targets.to(device)
         print(data.size(), targets.size())
         #print(net)
@@ -151,3 +150,14 @@ plt.title("Train Set Accuracy")
 plt.xlabel("Iteration")
 plt.ylabel("Accuracy")
 plt.show()
+
+# Plot Loss
+fig = plt.figure(facecolor="w")
+plt.plot(loss_hist)
+plt.title("Train Set Loss")
+plt.xlabel("Iteration")
+plt.ylabel("Loss")
+plt.show()
+
+
+
