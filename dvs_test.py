@@ -15,8 +15,6 @@ from tonic import DiskCachedDataset
 from torch.utils.data import DataLoader
 
 np.set_printoptions(threshold=100000)
-import snntorch.spikeplot as splt
-from IPython.display import HTML
 
 """
 Feedforward NN with LIF
@@ -114,26 +112,31 @@ TRAINING
 optimizer = torch.optim.Adam(net.parameters(), lr=2e-2, betas=(0.9, 0.999))
 loss_fn = SF.ce_rate_loss()
 
-num_epochs = 1
-num_iters = 100
+num_epochs = 10
+num_iters = 50
 
-loss_hist = []
-acc_hist = []
-test_loss_hist = []
-test_acc_hist = []
+total_test_loss_hist = []
+total_test_acc_hist = []
+total_train_loss_hist = []
+total_train_acc_hist = []
+err_total_test_loss_hist = []
+err_total_test_acc_hist = []
+err_total_train_loss_hist = []
+err_total_train_acc_hist = []
+
 
 # training loop
 t0 = time.time()
 for epoch in range(num_epochs):
+    loss_hist = []
+    acc_hist = []
+    test_loss_hist = []
+    test_acc_hist = []
     for i, (data, targets) in enumerate(trainloader, 0):
         data = data.to(device)
         targets = targets.to(device)
-        # data = data.to(torch.bool)
-        # targets = targets.to(torch.bool)
-        print(data.size(), targets.size())
-        # print(net)
         net.train()
-        # sprint(net)
+        #compute prediction and loss
         spk_rec = forward_pass(net, data)
         loss_val = loss_fn(spk_rec, targets)
 
@@ -144,62 +147,76 @@ for epoch in range(num_epochs):
 
         # Store loss history for future plotting
         loss_hist.append(loss_val.item())
-        print('{} seconds'.format(time.time() - t0))
+        print('{} s'.format(time.time() - t0), end=": ")
         t0 = time.time()
-        print(f"Epoch {epoch}, Iteration {i} \nTrain Loss: {loss_val.item():.2f}")
-
+        print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
         acc = SF.accuracy_rate(spk_rec, targets)
         acc_hist.append(acc)
-        print(f"Accuracy: {acc * 100:.2f}%\n")
+        print(f"Accuracy: {acc * 100:.2f}%")
+        # training loop breaks after 50 iterations
+        if i == num_iters:
+            break
+
+    for i, (data, targets) in enumerate(testloader, 0):
+        data = data.to(device)
+        targets = targets.to(device)
+        net.eval()
+
+        spk_rec = forward_pass(net, data)
+        loss_val = loss_fn(spk_rec, targets)
+
+        # Gradient calculation + weight update
+        optimizer.zero_grad()
+        loss_val.backward()
+        optimizer.step()
+
+        # Store loss history for future plotting
+        test_loss_hist.append(loss_val.item())
+
+        print('{} s'.format(time.time() - t0), end=": ")
+        t0 = time.time()
+        print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
+        acc = SF.accuracy_rate(spk_rec, targets)
+        test_acc_hist.append(acc)
+        print(f"Accuracy: {acc * 100:.2f}%")
 
         # training loop breaks after 50 iterations
         if i == num_iters:
             break
+
+    total_test_acc_hist.append(np.mean(test_acc_hist))
+    total_test_loss_hist.append(np.mean(test_loss_hist))
+    total_train_acc_hist.append(np.mean(acc_hist))
+    total_train_loss_hist.append(np.mean(loss_hist))
+
+    err_total_test_acc_hist.append(np.std(test_acc_hist, ddof=1) / np.sqrt(np.size(test_acc_hist)))
+    err_total_test_loss_hist.append(np.std(test_loss_hist, ddof=1) / np.sqrt(np.size(test_loss_hist)))
+    err_total_train_acc_hist.append(np.std(acc_hist, ddof=1) / np.sqrt(np.size(acc_hist)))
+    err_total_train_loss_hist.append(np.std(loss_hist, ddof=1) / np.sqrt(np.size(loss_hist)))
+
+
+x= np.arange(num_epochs)
 fig = plt.figure(facecolor="w")
-plt.plot(acc_hist)
-plt.title("Train Set Accuracy")
-plt.xlabel("Iteration")
+plt.errorbar(y=total_test_acc_hist, x=x, yerr=err_total_test_acc_hist, label='Test/Val')
+plt.errorbar(y=total_train_acc_hist,x=x, yerr=err_total_train_acc_hist, label='Train')
+plt.title("Average Accuracy")
+plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
+plt.legend(loc='lower right')
 plt.show()
+#plt.savefig("accuracy.png", dpi=150)
+
+
+fig = plt.figure(facecolor="w")
+plt.errorbar(y=total_test_loss_hist, x=x, yerr=err_total_test_loss_hist, label='Test/Val')
+plt.errorbar(y=total_train_loss_hist, x=x, yerr=err_total_train_loss_hist, label='Train')
+plt.title("Average Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend(loc='lower right')
+plt.show()
+#plt.savefig("loss.png", dpi=150)
+
 
 # with torch.no_grad():
-net.eval()
-for i, (data, targets) in enumerate(testloader, 0):
-    data = data.to(device)
-    targets = targets.to(device)
-    print(data.size(), targets.size())
-    spk_rec = forward_pass(net, data)
-    loss_val = loss_fn(spk_rec, targets)
 
-    # Gradient calculation + weight update
-    optimizer.zero_grad()
-    loss_val.backward()
-    optimizer.step()
-
-    # Store loss history for future plotting
-    test_loss_hist.append(loss_val.item())
-
-    print(f"Iteration {i} \nTrain Loss: {loss_val.item():.2f}")
-
-    acc = SF.accuracy_rate(spk_rec, targets)
-    test_acc_hist.append(acc)
-    print(f"Accuracy: {acc * 100:.2f}%\n")
-
-    # training loop breaks after 50 iterations
-    if i == num_iters:
-        break
-
-"""
-#######
-RESULTS
-#######
-"""
-# Plot Loss
-print(np.mean(test_acc_hist))
-
-fig = plt.figure(facecolor="w")
-plt.plot(test_acc_hist)
-plt.title("Test Set Accuracy")
-plt.xlabel("Iteration")
-plt.ylabel("Accuracy")
-plt.show()
