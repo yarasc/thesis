@@ -2,33 +2,22 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import snntorch as snn
+import pandas as pd
 import tonic
 import tonic.transforms as transforms
-import torch
-import torch.nn as nn
 import torchvision
 from snntorch import functional as SF
 from snntorch import surrogate
-from snntorch import utils
-from tonic import DiskCachedDataset
 from torch.utils.data import DataLoader
 
-np.set_printoptions(threshold=100000)
+from net import *
+from performance import *
 
 """
 Feedforward NN with LIF
 based on Tutorial 7 SNNTorch
 """
 
-"""
-#########################################
-USING TONIC TO LOAD NEUROMORPHIC DATASETS
-#########################################
-"""
-"""
-TRANSFORMATIONS
-"""
 sensor_size = tonic.datasets.DVSGesture.sensor_size
 
 # Denoise removes isolated, one-off events
@@ -38,40 +27,16 @@ frame_transform = transforms.Compose([transforms.Denoise(filter_time=10000),
                                                          time_window=3000)
                                       ])
 
-trainset = tonic.datasets.DVSGesture(save_to='./data', transform=frame_transform, train=True)
-testset = tonic.datasets.DVSGesture(save_to='./data', transform=frame_transform, train=False)
-
-"""
-#####################################################
-TRAINING OUR NETWORK USING FRAMES CREATED FROM EVENTS
-#####################################################
-"""
+trainset = tonic.datasets.DVSGesture(save_to='./dvs_data', transform=frame_transform, train=True)
+testset = tonic.datasets.DVSGesture(save_to='./dvs_data', transform=frame_transform, train=False)
 
 transform = tonic.transforms.Compose([torch.from_numpy,
                                       torchvision.transforms.RandomRotation([-10, 10])])
 
-cached_trainset = DiskCachedDataset(trainset, transform=transform, cache_path='./cache/dvs/train')
-cached_testset = DiskCachedDataset(testset, cache_path='./cache/dvs/test')
-
-# no augmentations for the testset
-# cached_testset = DiskCachedDataset(testset, cache_path='./cache/dvs/test')
-
-
-batch_size = 16
+batch_size = 1
 trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
 testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
 
-n = 125
-# index into a single sample and sum the on/off channels
-# a = (trainloader.dataset[n][0][:, 0] + trainloader.dataset[n][0][:, 1])
-# #  Plot
-# fig, ax = plt.subplots()
-# anim = splt.animator(a, fig, ax, interval=10)
-# HTML(anim.to_html5_video())
-# anim.save('dvsgesture_animator.mp4', writer = 'ffmpeg', fps=50)
-"""
-DEFINING OUR NETWORK
-"""
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # network parameters
@@ -84,27 +49,7 @@ num_steps = 1
 beta = 0.9  # neuron decay rate
 grad = surrogate.fast_sigmoid()
 
-#  Initialize Network
-net = nn.Sequential(
-    nn.Flatten(),
-    nn.Linear(num_inputs, num_outputs),
-    snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True),
-
-).to(device)
-
-
-# this time, we won't return membrane as we don't need it
-
-def forward_pass(net, data):
-    spk_rec = []
-    utils.reset(net)  # resets hidden states for all LIF neurons in net
-
-    for step in range(data.size(0)):  # data.size(0) = number of time steps
-        spk_out, mem_out = net(data[step])
-        spk_rec.append(spk_out)
-
-    return torch.stack(spk_rec)
-
+net = FFNet(num_inputs, num_outputs, beta).to(device)
 
 """
 TRAINING
@@ -115,108 +60,107 @@ loss_fn = SF.ce_rate_loss()
 num_epochs = 10
 num_iters = 50
 
-total_test_loss_hist = []
-total_test_acc_hist = []
-total_train_loss_hist = []
-total_train_acc_hist = []
-err_total_test_loss_hist = []
-err_total_test_acc_hist = []
-err_total_train_loss_hist = []
-err_total_train_acc_hist = []
-
-
+train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Time", "Accuracy", "Loss"])
+test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Time", "Accuracy", "Loss"])
 # training loop
 t0 = time.time()
 for epoch in range(num_epochs):
-    loss_hist = []
-    acc_hist = []
-    test_loss_hist = []
-    test_acc_hist = []
     for i, (data, targets) in enumerate(trainloader, 0):
-        data = data.to(device)
-        targets = targets.to(device)
-        net.train()
-        #compute prediction and loss
-        spk_rec = forward_pass(net, data)
-        loss_val = loss_fn(spk_rec, targets)
+        step = 0
+        loss_hist = []
+        acc_hist = []
+        final = len(data)
+        for frame in data:
+            step += 1
+            # shuffle the frames & targets
+            #frame = frame.reshape([1, batch_size, 2, 128, 128])
+            frame = frame.to(device)
+            targets = targets.to(device)
 
-        # Gradient calculation + weight update
-        optimizer.zero_grad()
-        loss_val.backward()
-        optimizer.step()
+            net.train()
+            # compute prediction and loss
+            # spk_rec = forward_pass(net, frame)
+            spk_rec, mem_rec = net(frame.view(batch_size, -1))
+            loss_val = loss_fn(spk_rec, targets)
 
-        # Store loss history for future plotting
-        loss_hist.append(loss_val.item())
-        print('{} s'.format(time.time() - t0), end=": ")
-        t0 = time.time()
-        print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
-        acc = SF.accuracy_rate(spk_rec, targets)
-        acc_hist.append(acc)
-        print(f"Accuracy: {acc * 100:.2f}%")
-        # training loop breaks after 50 iterations
-        if i == num_iters:
-            break
+            # Gradient calculation + weight update
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
+            acc = SF.accuracy_rate(spk_rec, targets)
+            # Store loss history for future plotting every 0.3 sec
+            if step % 100==0 or step == final-1:
+                x = [[ epoch, i, float(step * 0.003), acc, loss_val.item()]]
+                tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Time", "Accuracy", "Loss"])
+                train_hist = pd.concat([train_hist, tmp_df])
+            if step == final-1:
+                print('{} s'.format(time.time() - t0), end=": ")
+                t0 = time.time()
+                print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
+                print(f"Accuracy: {acc * 100:.2f}%")
+
+                # training loop breaks after 50 iterations
+            if i == num_iters:
+                break
 
     for i, (data, targets) in enumerate(testloader, 0):
-        data = data.to(device)
-        targets = targets.to(device)
-        net.eval()
+        test_loss_hist = []
+        test_acc_hist = []
+        step = 0
+        for frame in data:
+            step += 1
+            #frame = frame.reshape([1, batch_size, 2, 128, 128])
+            frame = frame.to(device)
+            targets = targets.to(device)
 
-        spk_rec = forward_pass(net, data)
-        loss_val = loss_fn(spk_rec, targets)
+            net.eval()
+            # spk_rec = forward_pass(net, frame)
+            spk_rec, mem_rec = net(frame)
+            loss_val = loss_fn(spk_rec, targets)
 
-        # Gradient calculation + weight update
-        optimizer.zero_grad()
-        loss_val.backward()
-        optimizer.step()
+            # Gradient calculation + weight update
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
 
-        # Store loss history for future plotting
-        test_loss_hist.append(loss_val.item())
+            # Store loss history for future plotting every 0.3 second
+            if step % 100:
+                acc = SF.accuracy_rate(spk_rec, targets)
+                x = [[epoch, i, float(step * 0.003), acc, loss_val.item()]]
+                tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Time", "Accuracy", "Loss"])
+                test_hist = pd.concat([test_hist, tmp_df])
 
-        print('{} s'.format(time.time() - t0), end=": ")
-        t0 = time.time()
-        print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
-        acc = SF.accuracy_rate(spk_rec, targets)
-        test_acc_hist.append(acc)
-        print(f"Accuracy: {acc * 100:.2f}%")
+                print('{} s'.format(time.time() - t0), end=": ")
+                t0 = time.time()
+                print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
+                print(f"Accuracy: {acc * 100:.2f}%")
 
         # training loop breaks after 50 iterations
         if i == num_iters:
             break
 
-    total_test_acc_hist.append(np.mean(test_acc_hist))
-    total_test_loss_hist.append(np.mean(test_loss_hist))
-    total_train_acc_hist.append(np.mean(acc_hist))
-    total_train_loss_hist.append(np.mean(loss_hist))
-
-    err_total_test_acc_hist.append(np.std(test_acc_hist, ddof=1) / np.sqrt(np.size(test_acc_hist)))
-    err_total_test_loss_hist.append(np.std(test_loss_hist, ddof=1) / np.sqrt(np.size(test_loss_hist)))
-    err_total_train_acc_hist.append(np.std(acc_hist, ddof=1) / np.sqrt(np.size(acc_hist)))
-    err_total_train_loss_hist.append(np.std(loss_hist, ddof=1) / np.sqrt(np.size(loss_hist)))
+train_hist.to_csv('train.csv')
+train_hist.to_csv('test.csv')
 
 
-x= np.arange(num_epochs)
-fig = plt.figure(facecolor="w")
-plt.errorbar(y=total_test_acc_hist, x=x, yerr=err_total_test_acc_hist, label='Test/Val')
-plt.errorbar(y=total_train_acc_hist,x=x, yerr=err_total_train_acc_hist, label='Train')
-plt.title("Average Accuracy")
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.legend(loc='lower right')
-plt.show()
-#plt.savefig("accuracy.png", dpi=150)
-
-
-fig = plt.figure(facecolor="w")
-plt.errorbar(y=total_test_loss_hist, x=x, yerr=err_total_test_loss_hist, label='Test/Val')
-plt.errorbar(y=total_train_loss_hist, x=x, yerr=err_total_train_loss_hist, label='Train')
-plt.title("Average Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.legend(loc='lower right')
-plt.show()
-#plt.savefig("loss.png", dpi=150)
-
-
-# with torch.no_grad():
-
+# x = np.arange(num_epochs)
+# fig = plt.figure(facecolor="w")
+# plt.errorbar(y=test_hist.accuracy, x=x, yerr=test_hist.error_acc, label='Test/Val')
+# plt.errorbar(y=train_hist.accuracy, x=x, yerr=train_hist.error_acc, label='Train')
+# plt.title("Average Accuracy")
+# plt.xlabel("Epoch")
+# plt.ylabel("Accuracy")
+# plt.legend(loc='lower right')
+# plt.show()
+# # plt.savefig("accuracy.png", dpi=150)
+#
+#
+# fig = plt.figure(facecolor="w")
+# plt.errorbar(y=test_hist.loss, x=x, yerr=test_hist.error_los, label='Test/Val')
+# plt.errorbar(y=train_hist.loss, x=x, yerr=train_hist.error_loss, label='Train')
+# plt.title("Average Loss")
+# plt.xlabel("Epoch")
+# plt.ylabel("Loss")
+# plt.legend(loc='lower right')
+# plt.show()
+# # plt.savefig("loss.png", dpi=150)
