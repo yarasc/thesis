@@ -55,6 +55,6 @@ class FFNet(nn.Module):
             cur = self.fc1(x)
             spk, mem = self.lif1(cur, mem)
             spk_rec.append(spk)
-            mem_rec.append(mem)
+            #mem_rec.append(mem)
 
-        return torch.stack(spk_rec, dim=0), torch.stack(mem_rec, dim=0)
+        return torch.stack(spk_rec, dim=0)#, torch.stack(mem_rec, dim=0)
