@@ -27,6 +27,24 @@ def createDataloaders(batch_size):
 
     return trainloader, testloader
 
+def createMNISTDataloaders(batch_size):
+    sensor_size = tonic.datasets.NMNIST.sensor_size
+
+    # Denoise removes isolated, one-off events
+    # time_window
+    frame_transform = transforms.Compose([transforms.Denoise(filter_time=10000),
+                                          transforms.ToFrame(sensor_size=sensor_size,
+                                                             time_window=1000)
+                                          ])
+
+    trainset = tonic.datasets.NMNIST(save_to='./dvs_data', transform=frame_transform, train=True)
+    testset = tonic.datasets.NMNIST(save_to='./dvs_data', transform=frame_transform, train=False)
+
+    trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
+    testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
+
+    return trainloader, testloader
+
 
 def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
     acc = SF.accuracy_rate(spk_rec, targets)
@@ -35,7 +53,7 @@ def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
     tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss"])
 
     print('{} s'.format(time.time() - t0), end=": ")
-    t0 = time.time()
+
     if train:
         print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
     else:
