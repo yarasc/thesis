@@ -13,19 +13,24 @@ from tqdm import tqdm
 from twolayernetwork import TwoLayerNetworkShaped
 from utils import createDataloaders
 
-batch_size = 16
+batch_size = 8
 
 
 # network parameters
-n_classes = 11
-num_inputs = 128 * 128 * 2  # width*height*channels (on-spikes for luminance increasing; off-spikes for luminance decreasing)
-num_hidden = 128 * 128 * 2
-num_steps = 1
+# for NMNIST
+num_inputs = 2 * 34 * 34  # width*height*channels (on-spikes for luminance increasing; off-spikes for luminance decreasing)
+num_hidden = 2 * 34 * 34
+num_classes = 10
+
+# for DVS Gesture
+# num_inputs = 128 * 128 * 2  #height*channels*width (on-spikes for luminance increasing; off-spikes for luminance decreasing)
+# num_hidden = 128 * 128 * 2
+# num_classes = 11
 
 # Epochs & Iterations
 num_epochs = 10
-num_test = 50
-num_train = 500
+num_train = 50
+num_test = 15
 
 seed = 0
 
@@ -41,10 +46,14 @@ intensity = 128
 progress_interval = 4
 update_interval = update_steps * batch_size
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-gpu = False
-torch.manual_seed(seed)
-torch.set_num_threads(os.cpu_count() - 1)
+
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+    gpu = False
+    torch.manual_seed(seed)
+    torch.set_num_threads(os.cpu_count() - 1)
 print("Running on Device = ", device)
 
 if n_workers == -1:
@@ -65,8 +74,8 @@ trainloader, testloader = createDataloaders(batch_size)
 # Neuron assignments and spike proportions.
 
 assignments = -torch.ones(num_inputs, device=device)
-proportions = torch.zeros((num_inputs, n_classes), device=device)
-rates = torch.zeros((num_inputs, n_classes), device=device)
+proportions = torch.zeros((num_inputs, num_classes), device=device)
+rates = torch.zeros((num_inputs, num_classes), device=device)
 
 # Sequence of accuracy estimates.
 accuracy = {"all": [], "proportion": []}
@@ -143,13 +152,13 @@ for step, (data, targets) in enumerate(testloader):
 
         # Get network predictions.
         all_activity_pred = all_activity(
-            spikes=spike_record, assignments=assignments, n_labels=n_classes
+            spikes=spike_record, assignments=assignments, n_labels=num_classes
         )
         proportion_pred = proportion_weighting(
             spikes=spike_record,
             assignments=assignments,
             proportions=proportions,
-            n_labels=n_classes,
+            n_labels=num_classes,
         )
         # Compute network accuracy according to available classification strategies.
         accuracy["all"] += float(torch.sum(targets.long() == all_activity_pred).item())
