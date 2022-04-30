@@ -3,8 +3,6 @@ import time
 import pandas as pd
 import tonic
 import tonic.transforms as transforms
-import torch
-import torchvision
 from snntorch import functional as SF
 from torch.utils.data import DataLoader
 
@@ -14,10 +12,9 @@ def createDataloaders(batch_size):
 
     # Denoise removes isolated, one-off events
     # time_window
-    frame_transform = transforms.Compose([transforms.Denoise(filter_time=10000),
-                                          transforms.ToFrame(sensor_size=sensor_size,
-                                                             time_window=3000)
-                                          ])
+    frame_transform = transforms.Compose([
+        transforms.Denoise(filter_time=10000),
+        transforms.ToFrame(sensor_size=sensor_size, time_window=3000)])
 
     trainset = tonic.datasets.DVSGesture(save_to='./dvs_data', transform=frame_transform, train=True)
     testset = tonic.datasets.DVSGesture(save_to='./dvs_data', transform=frame_transform, train=False)
@@ -26,6 +23,7 @@ def createDataloaders(batch_size):
     testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
 
     return trainloader, testloader
+
 
 def createMNISTDataloaders(batch_size):
     sensor_size = tonic.datasets.NMNIST.sensor_size
@@ -40,8 +38,8 @@ def createMNISTDataloaders(batch_size):
     trainset = tonic.datasets.NMNIST(save_to='./dvs_data', transform=frame_transform, train=True)
     testset = tonic.datasets.NMNIST(save_to='./dvs_data', transform=frame_transform, train=False)
 
-    trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
-    testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors())
+    trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
+    testloader = DataLoader(testset, batch_size=batch_size, collate_fn=tonic.collation.PadTensors(), shuffle=True)
 
     return trainloader, testloader
 
@@ -58,7 +56,7 @@ def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
         print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
     else:
         print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
-    print(f"Accuracy: {acc * 100:.2f}%")
+    print(f"Accuracy: {acc * 100:.2f}%", spk_rec.sum())
 
     return tmp_df
 
