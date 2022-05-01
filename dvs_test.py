@@ -13,7 +13,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 # network parameters
 # for NMNIST
 # trainloader, testloader = createMNISTDataloaders(batch_size)
-# num_inputs = 2 * 34 * 34  # width*height*channels (on-spikes for luminance increasing; off-spikes for luminance decreasing)
+# num_inputs = 2 * 34 * 34  # width*height*channels
 # num_hidden = 2 * 34 * 34
 # num_classes = 10
 # kernel = 1
@@ -23,12 +23,9 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 # Number of test samples: 288
 trainloader, testloader = createDataloaders(batch_size)
 kernel = 4
-num_inputs = int(128 * 128 * 2 / (kernel*kernel)) # height*channels*width (on-spikes for luminance increasing; off-spikes for luminance decreasing)
+num_inputs = int(128 * 128 * 2 / (kernel * kernel))  # height*channels*width
 num_hidden = 128 * 128 * 2
 num_classes = 11
-
-
-
 
 # spiking neuron parameters
 beta = 0.9  # neuron decay rate
@@ -39,18 +36,20 @@ num_epochs = 10
 num_train = 50
 num_test = 15  # 15 => maximum amount of steps in DVS Gesture if batchsize 16
 
-
 # net = FFNet(num_inputs, num_classes, beta).to(device)
 net = RFFNet(num_inputs, num_classes, beta).to(device)
 
 optimizer = torch.optim.Adam(net.parameters(), lr=2e-2, betas=(0.9, 0.999))
-# Cross Entropy encourages the correct class to fire at all time steps, and aims to suppress incorrect classes from firing
-#loss_fn = SF.ce_rate_loss() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
-#loss_fn = SF.ce_count_loss() # Cross Entropy Spike Count Loss, accumulates spikes first & applies Cross Entropy Loss only once
-# loss_fn = SF.ce_max_membrane_loss() # encourages the maximum membrane potential of the correct class to increase, while suppressing the maximum membrane potential of incorrect classes
 
-loss_fn = SF.mse_count_loss(correct_rate=1, incorrect_rate=0.8) #default rate correct=1, incorrect=1, tutorial: 0.8,0.2 -> avoid dead neurones
-#loss_fn = SF.mse_membrane_loss()
+# Cross Entropy encourages the correct class to fire at all time steps,
+# and aims to suppress incorrect classes from firing
+# loss_fn = SF.ce_rate_loss() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
+# loss_fn = SF.ce_count_loss() # Cross Entropy Spike Count Loss, accumulates spikes first & applies CE only once
+
+# loss_fn = SF.mse_membrane_loss()
+loss_fn = SF.mse_count_loss(correct_rate=1,
+                            incorrect_rate=0.8)
+# default rate correct=1, incorrect=1, tutorial: 0.8,0.2 -> avoid dead neurones
 
 
 train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Loss"])
@@ -59,7 +58,7 @@ test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Loss"])
 # training loop
 t0 = time.time()
 flatten = nn.Flatten(2, 4)
-pool = nn.MaxPool3d(kernel_size=(1,int(kernel),int(kernel)))
+pool = nn.MaxPool3d(kernel_size=(1, int(kernel), int(kernel)))
 
 for epoch in range(num_epochs):
     for i, (data, targets) in enumerate(trainloader, 0):
@@ -100,7 +99,7 @@ for epoch in range(num_epochs):
         if i == num_test:
             break
 
-    #print parameter weights after each epoch.
+    # print parameter weights after each epoch.
     for param in net.parameters():
         print(param.data)
 
