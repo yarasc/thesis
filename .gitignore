@@ -1,0 +1,8 @@
+data/**
+cache/**
+pytorch/**
+*.pyc
+.DS_Store
+pytorch/
+bindsnet-master/**
+bindsnet-master.zip
