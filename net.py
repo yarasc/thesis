@@ -6,12 +6,11 @@ from snntorch._neurons.neurons import *
 
 
 class RFFNet(nn.Module):
-    def __init__(self, num_inputs, num_outputs, beta):
+    def __init__(self, num_inputs, num_outputs, beta,grad):
         super().__init__()
 
         # initialize layers
         # self.flat = nn.Flatten()
-        grad = surrogate.fast_sigmoid(slope=25)
 
         self.fc1 = nn.Linear(num_inputs, num_outputs)
         self.lif1 = snn.RLeaky(beta=beta, spike_grad=grad, V=0.5)
@@ -64,9 +63,8 @@ class TwoFFNet(nn.Module):
 
 
 class FFNet(nn.Module):
-    def __init__(self, num_inputs, num_outputs, beta):
+    def __init__(self, num_inputs, num_outputs, beta, grad):
         super().__init__()
-        grad = surrogate.fast_sigmoid(slope=25)
         # initialize layers
         self.fc1 = nn.Linear(num_inputs, num_outputs)
         self.lif1 = snn.Leaky(beta=beta, spike_grad=grad)

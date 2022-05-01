@@ -10,6 +10,9 @@ batch_size = 1
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+"""
+Pick Dataset and corresponding parameters
+"""
 # network parameters
 # for NMNIST
 # trainloader, testloader = createMNISTDataloaders(batch_size)
@@ -28,16 +31,19 @@ num_hidden = 128 * 128 * 2
 num_classes = 11
 
 # spiking neuron parameters
-beta = 0.9  # neuron decay rate
-grad = surrogate.fast_sigmoid(slope=25)
+beta = 0.5  # neuron decay rate (0.9 in tutorial 5, 0.5 in other tutorials)
+grad = surrogate.fast_sigmoid(slope=25) #default = 25, the higher the steeper the curve
 
 # Epochs & Iterations
 num_epochs = 10
 num_train = 50
 num_test = 15  # 15 => maximum amount of steps in DVS Gesture if batchsize 16
 
-# net = FFNet(num_inputs, num_classes, beta).to(device)
-net = RFFNet(num_inputs, num_classes, beta).to(device)
+"""
+Choose model (simple forward, or with RLeaky)
+"""
+# net = FFNet(num_inputs, num_classes, beta, grad).to(device)
+net = RFFNet(num_inputs, num_classes, beta, grad).to(device)
 
 optimizer = torch.optim.Adam(net.parameters(), lr=2e-2, betas=(0.9, 0.999))
 
