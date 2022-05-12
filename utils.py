@@ -5,6 +5,8 @@ import tonic
 import tonic.transforms as transforms
 from snntorch import functional as SF
 from torch.utils.data import DataLoader
+import torch.nn as nn
+import torch
 
 
 def createDataloaders(batch_size):
@@ -87,24 +89,24 @@ def createMNISTDataloaders(batch_size):
     return trainloader, testloader
 
 
-def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train, top3):
-    if top3:
-        # print(spk_rec.sum(dim=0))
-        batch_nr = 0
-        acc = 0
-        for pred in spk_rec.sum(dim=0):
-            _, idx = pred.topk(3)
-            if targets[batch_nr] in idx:
-                acc += 1
-            batch_nr += 1
-        acc /= batch_nr
-    else:
-        acc = SF.accuracy_rate(spk_rec, targets)
+def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
+
+    # print(spk_rec.sum(dim=0))
+    batch_nr = 0
+    top3 = 0
+    for pred in spk_rec.sum(dim=0):
+        _, idx = pred.topk(3)
+        if targets[batch_nr] in idx:
+            top3 += 1
+        batch_nr += 1
+    top3 /= batch_nr
+
+    acc = SF.accuracy_rate(spk_rec, targets)
     # Store loss history for future plotting every 0.3 sec
     # _, idx = spk_rec.sum(dim=0).max(3)
 
-    x = [[epoch, i, acc, loss_val.item()]]
-    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss"])
+    x = [[epoch, i, acc, loss_val.item(), top3]]
+    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss", "Top3"])
 
     print('{} s'.format(time.time() - t0), end=": ")
 
@@ -140,3 +142,44 @@ def visualize():
     # plt.legend(loc='lower right')
     # plt.show()
     # # plt.savefig("loss.png", dpi=150)
+
+
+class ce_rate_loss_10(SF.LossFunctions):
+    def __init__(self):
+        self.__name__ = "ce_rate_loss"
+
+    def __call__(self, spk_out, targets):
+        device, num_steps, _ = self._prediction_check(spk_out)
+        log_softmax_fn = nn.LogSoftmax(dim=-1)
+        loss_fn = nn.NLLLoss(ignore_index=10)
+
+        log_p_y = log_softmax_fn(spk_out)
+        loss = torch.zeros((1), dtype=torch.float, device=device)
+
+        for step in range(num_steps):
+            loss += loss_fn(log_p_y[step], targets)
+
+        return loss / num_steps
+
+class ce_rate_loss_8(SF.LossFunctions):
+    def __init__(self):
+        self.__name__ = "ce_rate_loss"
+
+    def __call__(self, spk_out, targets):
+        device, num_steps, _ = self._prediction_check(spk_out)
+        log_softmax_fn = nn.LogSoftmax(dim=-1)
+        loss_fn = nn.NLLLoss(ignore_index=10)
+
+        log_p_y = log_softmax_fn(spk_out)
+        loss = torch.zeros((1), dtype=torch.float, device=device)
+
+        for i in range(len(targets)):
+            if targets[i] == 4:
+                targets[i] = 3
+            elif targets[i] == 6:
+                targets[i] = 5
+
+        for step in range(num_steps):
+            loss += loss_fn(log_p_y[step], targets)
+
+        return loss / num_steps
