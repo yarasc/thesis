@@ -19,7 +19,6 @@ from bindsnet.network.topology import Connection, Conv2dConnection
 from bindsnet.evaluation import *
 import numpy as np
 
-
 from utils import *
 
 seed = 0
@@ -151,6 +150,8 @@ pool = torch.nn.MaxPool2d(kernel)
 print("\nBegin training.\n")
 # Sequence of accuracy estimates.
 accuracy = {"top1": [], "top3": []}
+train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy",  "Top3"])
 
 
 for epoch in range(n_epochs):
@@ -173,7 +174,6 @@ for epoch in range(n_epochs):
 
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
-        # label = batch["label"]
 
         if step % update_interval == 0 and step > 0:
             # Convert the array of labels into a tensor
@@ -196,52 +196,24 @@ for epoch in range(n_epochs):
             top3acc = 0
             top1acc = 0
             for i in range(len(label_tensor)):
-                # print(label_tensor[i], top3preds[i])
-                if label_tensor[i]==top3preds[i][0]:
-                    top1acc +=1
+                if label_tensor[i] == top3preds[i][0]:
+                    top1acc += 1
                     top3acc += 1
                 elif label_tensor[i] in top3preds[i]:
                     top3acc += 1
 
             top3acc /= len(label_tensor)
             top1acc /= len(label_tensor)
-            #all_activity_pred = all_activity(
-             #   spikes=spike_record, assignments=assignments, n_labels=n_classes
-            #)
 
             # Compute network accuracy according to available classification strategies.
-            accuracy["top1"].append(
-                100 * top1acc
-            )
-
-            accuracy["top3"].append(
-                100 * top3acc
-            )
-
-            print(
-                "\nAll activity accuracy: %.2f (last), %.2f (average), %.2f (best)"
-                % (
-                    accuracy["top1"][-1],
-                    np.mean(accuracy["top1"]),
-                    np.max(accuracy["top1"]),
-                )
-            )
-            print(
-                "Top 3 accuracy: %.2f (last), %.2f (average), %.2f"
-                " (best)\n"
-                % (
-                    accuracy["top3"][-1],
-                    np.mean(accuracy["top3"]),
-                    np.max(accuracy["top3"]),
-                )
-            )
-
-
+            x = [[epoch, step/update_interval, top1acc, top3acc]]
+            tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+            train_hist = pd.concat([train_hist, tmp_df])
             labels = []
 
         # Run the network on the input.
-        network.run(inputs=inputs, time=time, input_time_dim=1)
-        stepudpate=step % update_interval
+        network.run(inputs=inputs, time=250, input_time_dim=1)
+        stepudpate = step % update_interval
         spikeyy = spikes["Y"].get("s")
         spike_record[stepudpate] = spikeyy.squeeze()
 
@@ -250,5 +222,9 @@ for epoch in range(n_epochs):
         pbar.set_description_str("Train progress: ")
         pbar.update()
 
-print("Progress: %d / %d (%.4f seconds)\n" % (n_epochs, n_epochs, t() - start))
+    print("Progress: %d / %d (%.4f seconds)\n" % (n_epochs, n_epochs, t() - start))
 print("Training complete.\n")
+
+train_hist.to_csv('train–mnist-cnn-binds.csv')
+test_hist.to_csv('test–mnist-cnn-binds.csv')
+
