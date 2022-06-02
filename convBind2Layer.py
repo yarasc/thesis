@@ -14,7 +14,7 @@ from bindsnet.encoding import PoissonEncoder
 from bindsnet.learning import PostPre
 from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor
-from bindsnet.network.nodes import DiehlAndCookNodes, Input
+from bindsnet.network.nodes import DiehlAndCookNodes, Input, LIFNodes
 from bindsnet.network.topology import Connection, Conv2dConnection
 from bindsnet.evaluation import *
 import numpy as np
@@ -74,19 +74,31 @@ per_class = int((n_filters * conv_size * conv_size) / 10)
 network = Network()
 input_layer = Input(n=2312, shape=(2, 34, 34), traces=True)
 
-conv_layer = DiehlAndCookNodes(
+Layer1 = LIFNodes(
+    n=n_filters * conv_size * conv_size,
+    shape=(n_filters, conv_size, conv_size),
+    traces=True,
+)
+Layer2 = LIFNodes(
     n=n_filters * conv_size * conv_size,
     shape=(n_filters, conv_size, conv_size),
     traces=True,
 )
 
-conv_conn = Conv2dConnection(
+conv_conn1 = Conv2dConnection(
     input_layer,
-    conv_layer,
+    Layer1,
     kernel_size=kernel_size,
     stride=stride,
     update_rule=PostPre,
     norm=0.4 * kernel_size ** 2,
+    nu=[1e-4, 1e-2],
+    wmax=1.0,
+)
+conv_conn2 = Connection(
+    Layer1,
+    Layer2,
+    update_rule=PostPre,
     nu=[1e-4, 1e-2],
     wmax=1.0,
 )
@@ -99,22 +111,24 @@ for fltr1 in range(n_filters):
                 for j in range(conv_size):
                     w[fltr1, i, j, fltr2, i, j] = -100.0
 
-w = w.view(n_filters * conv_size * conv_size, n_filters * conv_size * conv_size)
-recurrent_conn = Connection(conv_layer, conv_layer, w=w)
+w1 = w.view(n_filters * conv_size * conv_size, n_filters * conv_size * conv_size)
+w2 = w.view(n_filters * conv_size * conv_size, n_filters * conv_size * conv_size)
+recurrent_conn1 = Connection(Layer1, Layer1, w=w1)
+recurrent_conn2 = Connection(Layer2, Layer2, w=w2)
 
 network.add_layer(input_layer, name="X")
-network.add_layer(conv_layer, name="Y")
-network.add_layer(conv_layer, name="Z")
-network.add_connection(conv_conn, source="X", target="Y")
-network.add_connection(recurrent_conn, source="Y", target="Y")
-network.add_connection(conv_conn, source="Y", target="Z")
-network.add_connection(recurrent_conn, source="Z", target="Z")
+network.add_layer(Layer1, name="Y")
+network.add_layer(Layer2, name="Z")
+network.add_connection(conv_conn1, source="X", target="Y")
+network.add_connection(recurrent_conn1, source="Y", target="Y")
+network.add_connection(conv_conn2, source="Y", target="Z")
+network.add_connection(recurrent_conn2, source="Z", target="Z")
 
 # Record spikes during the simulation.
 spike_record = torch.ones((update_interval, time, n_filters, conv_size, conv_size), device=device)
 
 # Neuron assignments and spike proportions.
-n_classes = 11
+n_classes = 10
 assignments = -torch.ones(n_filters, conv_size, conv_size, device=device)
 proportions = torch.zeros((n_filters, conv_size, conv_size, n_classes), device=device)
 rates = torch.zeros((n_filters, conv_size, conv_size, n_classes), device=device)
@@ -213,6 +227,7 @@ for epoch in range(n_epochs):
             x = [[epoch, step/8, top1acc, top3acc]]
             tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
             train_hist = pd.concat([train_hist, tmp_df])
+            print(tmp_df)
             labels = []
         # Run the network on the input.
         network.run(inputs=inputs, time=250, input_time_dim=1)
