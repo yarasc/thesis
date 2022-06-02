@@ -157,6 +157,7 @@ test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy",  "Top3"])
 for epoch in range(n_epochs):
     labels = []
     pbar = tqdm(total=n_train)
+    start = t()
     if epoch % progress_interval == 0:
         print("Progress: %d / %d (%.4f seconds)" % (epoch, n_epochs, t() - start))
         start = t()
@@ -175,9 +176,9 @@ for epoch in range(n_epochs):
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
 
-        if step % update_interval == 0 and step > 0:
+        if step % 8 == 0 and step > 0:
             # Convert the array of labels into a tensor
-            label_tensor = torch.tensor(label, device=device)
+            label_tensor = torch.tensor(labels, device=device)
 
             # Get network predictions.
 
@@ -206,11 +207,10 @@ for epoch in range(n_epochs):
             top1acc /= len(label_tensor)
 
             # Compute network accuracy according to available classification strategies.
-            x = [[epoch, step/update_interval, top1acc, top3acc]]
+            x = [[epoch, step/8, top1acc, top3acc]]
             tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
             train_hist = pd.concat([train_hist, tmp_df])
             labels = []
-
         # Run the network on the input.
         network.run(inputs=inputs, time=250, input_time_dim=1)
         stepudpate = step % update_interval
@@ -222,7 +222,7 @@ for epoch in range(n_epochs):
         pbar.set_description_str("Train progress: ")
         pbar.update()
 
-    print("Progress: %d / %d (%.4f seconds)\n" % (n_epochs, n_epochs, t() - start))
+    print("Progress: %d / %d (%.4f seconds)\n" % (epoch, n_epochs, t() - start))
 print("Training complete.\n")
 
 train_hist.to_csv('train–mnist-cnn-binds.csv')
