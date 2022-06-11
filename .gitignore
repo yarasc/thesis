@@ -8,3 +8,5 @@ pytorch/
 bindsnet-master/**
 bindsnet-master.zip
 dvs_data/DVSGesture/ibmGestureTest.tar.gz
+*.eps
+*.png
