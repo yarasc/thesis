@@ -94,9 +94,11 @@ def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
     # print(spk_rec.sum(dim=0))
     batch_nr = 0
     top3 = 0
+
     for pred in spk_rec.sum(dim=0):
-        _, idx = pred.topk(3)
-        if targets[batch_nr] in idx:
+        _, idx3 = pred.topk(3)
+        # print(targets[batch_nr], idx1[batch_nr], idx3)
+        if targets[batch_nr] in idx3:
             top3 += 1
         batch_nr += 1
     top3 /= batch_nr
@@ -115,6 +117,43 @@ def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
     else:
         print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
     print(f"Accuracy: {acc * 100:.2f}%", SF.accuracy_rate(spk_rec, targets))
+
+    return tmp_df
+
+def evaluate10(spk_rec, targets, t0, loss_val, epoch, i, train):
+
+    # print(spk_rec.sum(dim=0))
+    batch_nr = 0
+    top3 = 0
+    top1 = 0
+    other = False
+    for pred in spk_rec.sum(dim=0):
+        _, idx1 = pred.topk(1)
+        _, idx3 = pred.topk(3)
+        # print(targets[batch_nr], idx1[batch_nr], idx3)
+        if targets[batch_nr] < 10 or other:
+            if targets[batch_nr] in idx3:
+                top3 += 1
+            if targets[batch_nr] == idx1:
+                top1 += 1
+            batch_nr += 1
+    top3 /= batch_nr
+    top1 /= batch_nr
+
+    #acc = SF.accuracy_rate(spk_rec, targets)
+    # Store loss history for future plotting every 0.3 sec
+    # _, idx = spk_rec.sum(dim=0).max(3)
+
+    x = [[epoch, i, top1, loss_val.item(), top3]]
+    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss", "Top3"])
+
+    print('{} s'.format(time.time() - t0), end=": ")
+
+    if train:
+        print(f"Epoch {epoch}, Iteration {i} – Train Loss: {loss_val.item():.2f}", end=" – ")
+    else:
+        print(f"Epoch {epoch}, Iteration {i} – Test Loss: {loss_val.item():.2f}", end=" – ")
+    print(f"Accuracy: {top1 * 100:.2f}%", SF.accuracy_rate(spk_rec, targets))
 
     return tmp_df
 

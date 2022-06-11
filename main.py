@@ -1,0 +1,232 @@
+from train import *
+
+"""print("\n 1 – MNIST ")
+print("1.1 – CNN ")
+run_snntorch("MnistCnnMseB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="CNN",
+             loss="mse",
+             set="mnist"
+             )
+run_snntorch("MnistCnnCeB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="CNN",
+             loss="ce",
+             set="mnist"
+             )
+print("\n \n 1.2 – RNN Two ")
+run_snntorch("Mnist2RnnMseB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             section=2000,
+             beta=0.2,
+             model="2RNN",
+             loss="mse",
+             set="mnist"
+             )
+run_snntorch("Mnist2RnnCeB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="2RNN",
+             loss="ce",
+             set="mnist"
+             )
+print("\n \n 1.3 – RNN One ")
+run_snntorch("Mnist1RnnMseB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             section=2000,
+             beta=0.2,
+             model="SimpRNN",
+             loss="mse",
+             set="mnist"
+             )
+run_snntorch("Mnist1RnnCeB02",
+             num_train=150,
+             num_test=30,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="SimpRNN",
+             loss="ce",
+             set="mnist"
+             )"""
+
+print("\n 1 – DVS Gesture")
+print("1.1 – CNN ")
+run_snntorch("10DvsCnnMseB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="CNN",
+             loss="mse",
+             set="dvs"
+             )
+run_snntorch("10DvsCnnCeB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="CNN",
+             loss="ce",
+             set="dvs"
+             )
+print("\n \n 1.2 – RNN Two ")
+run_snntorch("10Dvs2RnnMseB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             section=2000,
+             beta=0.4,
+             model="2RNN",
+             loss="mse",
+             set="dvs"
+             )
+run_snntorch("10Dvs2RnnCeB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="2RNN",
+             loss="ce",
+             set="dvs"
+             )
+print("\n \n 1.3 – RNN One ")
+run_snntorch("10Dvs1RnnMseB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             section=2000,
+             beta=0.4,
+             model="SimpRNN",
+             loss="mse",
+             set="dvs"
+             )
+run_snntorch("10Dvs1RnnCeB04",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="SimpRNN",
+             loss="ce",
+             set="dvs"
+             )
+
+print("\n less decay")
+run_snntorch("10DvsCnnMseB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="CNN",
+             loss="mse",
+             set="dvs"
+             )
+run_snntorch("10DvsCnnCeB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="CNN",
+             loss="ce",
+             set="dvs"
+             )
+print("\n \n 1.2 – RNN Two ")
+run_snntorch("10Dvs2RnnMseB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             section=2000,
+             beta=0.2,
+             model="2RNN",
+             loss="mse",
+             set="dvs"
+             )
+run_snntorch("10Dvs2RnnCeB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="2RNN",
+             loss="ce",
+             set="dvs"
+             )
+print("\n \n 1.3 – RNN One ")
+run_snntorch("10Dvs1RnnMseB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             section=2000,
+             beta=0.2,
+             model="SimpRNN",
+             loss="mse",
+             set="dvs")
+
+run_snntorch("10DvsCnnMseB04F24_1",
+             num_train=121,
+             num_test=12,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="CNN",
+             loss="ce",
+             set="dvs"
+             )
+
+run_snntorch("10DvsCnnMseB04F24_2 ",
+             num_train=121,
+             num_test=12,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.4,
+             model="CNN",
+             loss="ce",
+             set="dvs"
+             )
+
+
+run_snntorch("10Dvs1RnnCeB02",
+             num_train=120,
+             num_test=15,
+             batch_size=8,
+             kernel=4,
+             section=2000,
+             beta=0.2,
+             model="SimpRNN",
+             loss="ce",
+             set="dvs"
+             )
