@@ -18,11 +18,10 @@ from bindsnet.analysis.plotting import (
 )
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
-from bindsnet.evaluation import * #all_activity, assign_labels, proportion_weighting
+from bindsnet.evaluation import *  # all_activity, assign_labels, proportion_weighting
 from bindsnet.models import DiehlAndCook2015
 from bindsnet.network.monitors import Monitor
 from bindsnet.utils import get_square_assignments, get_square_weights
-
 
 from utils import *
 
@@ -45,11 +44,11 @@ plot = False
 gpu = False
 device_id = 0
 
-width = 128 #34
-kernel = 4
-#width = int(width/kernel)
+width = 34#128  # 34
+kernel = 1
+# width = int(width/kernel)
 
-trainloader, testloader = createDataloaders(1)
+trainloader, testloader = createMNISTDataloaders(1)
 
 # Sets up Gpu use
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -64,36 +63,32 @@ else:
 torch.set_num_threads(os.cpu_count() - 1)
 print("Running on Device = ", device)
 
-
-if not train:
-    update_interval = n_test
+update_interval = 8
 
 n_sqrt = int(np.ceil(np.sqrt(n_neurons)))
 start_intensity = intensity
 
 # Build network.
 network = DiehlAndCook2015(
-    n_inpt=int(width * width * 2 / (kernel*kernel)),
+    n_inpt=int(width * width * 2 / (kernel * kernel)),
     n_neurons=n_neurons,
     exc=exc,
     inh=inh,
     dt=dt,
     norm=78.4,
     theta_plus=theta_plus,
-    inpt_shape=(2, int(width/kernel), int(width/kernel)),
+    inpt_shape=(2, int(width / kernel), int(width / kernel)),
 )
 
 # Directs network to GPU
 if gpu:
     network.to("cuda")
 
-
-
 # Record spikes during the simulation.
 spike_record = torch.zeros((update_interval, int(time / dt), n_neurons), device=device)
 
 # Neuron assignments and spike proportions.
-n_classes = 11
+n_classes = 10
 assignments = -torch.ones(n_neurons, device=device)
 proportions = torch.zeros((n_neurons, n_classes), device=device)
 rates = torch.zeros((n_neurons, n_classes), device=device)
@@ -139,6 +134,7 @@ pool = torch.nn.MaxPool2d(kernel)
 print("\nBegin training.\n")
 
 start = t()
+train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3"])
 for epoch in range(n_epochs):
     labels = []
     pbar = tqdm(total=n_train)
@@ -154,7 +150,7 @@ for epoch in range(n_epochs):
         # Get next input sample.
         image = pool(image.squeeze())
         image = torch.unsqueeze(image, 1)
-        inputs = {"X": image.reshape([image.size(0), 1, 2, int(width/kernel), int(width/kernel)])}
+        inputs = {"X": image.reshape([image.size(0), 1, 2, int(width / kernel), int(width / kernel)])}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
 
@@ -177,13 +173,13 @@ for epoch in range(n_epochs):
                     indices_acc = torch.nonzero(assignments == i).view(-1)
                     # Compute layer-wise firing rate for this label.
                     acc_rates[:, i] = torch.sum(acc_spikes[:, indices_acc], 1) / n_assigns
-            top3preds = torch.sort(acc_rates, dim=1, descending=True)[1][:,:3]
+            top3preds = torch.sort(acc_rates, dim=1, descending=True)[1][:, :3]
             top3acc = 0
             for i in range(len(label_tensor)):
-                #print(label_tensor[i], top3preds[i])
+                # print(label_tensor[i], top3preds[i])
                 if label_tensor[i] in top3preds[i]:
                     top3acc += 1
-            top3acc/=len(label_tensor)
+            top3acc /= len(label_tensor)
 
             proportion_pred = proportion_weighting(
                 spikes=spike_record,
@@ -192,10 +188,10 @@ for epoch in range(n_epochs):
                 n_labels=n_classes,
             )
             # Compute network accuracy according to available classification strategies.
+            top1acc = torch.sum(label_tensor.long() == all_activity_pred).item() / len(label_tensor)
             accuracy["top1"].append(
                 100
-                * torch.sum(label_tensor.long() == all_activity_pred).item()
-                / len(label_tensor)
+                * top1acc
             )
 
             accuracy["top3"].append(
@@ -228,6 +224,10 @@ for epoch in range(n_epochs):
                 rates=rates,
             )
 
+            x = [[epoch, step / 8, top1acc, top3acc]]
+            tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+            train_hist = pd.concat([train_hist, tmp_df])
+
             labels = []
 
         labels.append(label)
@@ -242,15 +242,13 @@ for epoch in range(n_epochs):
         # Add to spikes recording.
         spike_record[step % update_interval] = spikes["Ae"].get("s").squeeze()
 
-
         network.reset_state_variables()  # Reset state variables.
         pbar.set_description_str("Train progress: ")
         pbar.update()
 
 print("Progress: %d / %d (%.4f seconds)" % (1 + 1, n_epochs, t() - start))
 print("Training complete.\n")
-
-
+train_hist.to_csv('train–mnist-eth-binds.csv')
 
 # Sequence of accuracy estimates.
 accuracy = {"all": 0, "proportion": 0}
@@ -264,13 +262,15 @@ network.train(mode=False)
 start = t()
 
 pbar = tqdm(total=n_test)
+epoch=0
+test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy",  "Top3"])
 for step, batch in enumerate(testloader):
     if step >= n_test:
         break
     # Get next input sample.
     image = pool(batch[0].squeeze())
     image = torch.unsqueeze(image, 1)
-    inputs = {"X": image.view(image.size(0),1, 2, int(width/kernel), int(width/kernel))}
+    inputs = {"X": image.view(image.size(0), 1, 2, int(width / kernel), int(width / kernel))}
     if gpu:
         inputs = {k: v.cuda() for k, v in inputs.items()}
 
@@ -304,9 +304,40 @@ for step, batch in enumerate(testloader):
     pbar.set_description_str("Test progress: ")
     pbar.update()
 
+    acc_spikes = spike_record.sum(1)
+    acc_rates = torch.zeros((spike_record.size(0), n_classes))
+    for i in range(n_classes):
+        # Count the number of neurons with this label assignment.
+        n_assigns = torch.sum(assignments == i).float()
+
+        if n_assigns > 0:
+            # Get indices of samples with this label.
+            indices_acc = torch.nonzero(assignments == i).view(-1)
+            # Compute layer-wise firing rate for this label.
+            acc_rates[:, i] = torch.sum(acc_spikes[:, indices_acc], 1) / n_assigns
+    top3preds = torch.sort(acc_rates, dim=1, descending=True)[1][:, :3]
+    top3acc = 0
+    top1acc = 0
+    for i in range(len(label_tensor)):
+        if label_tensor[i] == top3preds[i][0]:
+            top1acc += 1
+            top3acc += 1
+        elif label_tensor[i] in top3preds[i]:
+            top3acc += 1
+
+    top3acc /= len(label_tensor)
+    top1acc /= len(label_tensor)
+    # Compute network accuracy according to available classification strategies.
+    x = [[epoch, step / 8, top1acc, top3acc]]
+    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+    test_hist = pd.concat([test_hist, tmp_df])
+    print(tmp_df)
+    labels = []
+
 print("\nAll activity accuracy: %.2f" % (accuracy["all"] / n_test))
 print("Proportion weighting accuracy: %.2f \n" % (accuracy["proportion"] / n_test))
 
-
 print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Testing complete.\n")
+test_hist.to_csv('test–mnist-cnn-binds.csv')
+

@@ -43,7 +43,7 @@ device_id = 0
 batch_size = 1
 kernel_size = 16
 stride = 4
-n_filters = 24
+n_filters = 32
 padding = 0
 
 width = 34  # 34
@@ -137,6 +137,10 @@ rates = torch.zeros((n_filters, conv_size, conv_size, n_classes), device=device)
 voltage_monitor = Monitor(network.layers["Y"], ["v"], time=time)
 network.add_monitor(voltage_monitor, name="output_voltage")
 
+# Voltage recording for excitatory and inhibitory layers.
+voltage_monitor = Monitor(network.layers["Y"], ["v"], time=time)
+network.add_monitor(voltage_monitor, name="output_voltage")
+
 if gpu:
     network.to("cuda")
 
@@ -173,7 +177,7 @@ test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy",  "Top3"])
 
 for epoch in range(n_epochs):
     labels = []
-    pbar = tqdm(total=n_train)
+    # pbar = tqdm(total=n_train)
     start = t()
     if epoch % progress_interval == 0:
         print("Progress: %d / %d (%.4f seconds)" % (epoch, n_epochs, t() - start))
@@ -232,13 +236,13 @@ for epoch in range(n_epochs):
         # Run the network on the input.
         network.run(inputs=inputs, time=250, input_time_dim=1)
         stepudpate = step % update_interval
-        spikeyy = spikes["Y"].get("s")
+        spikeyy = spikes["Z"].get("s")
         spike_record[stepudpate] = spikeyy.squeeze()
 
         network.reset_state_variables()  # Reset state variables.
         labels.append(label)
-        pbar.set_description_str("Train progress: ")
-        pbar.update()
+        #pbar.set_description_str("Train progress: ")
+        #pbar.update()
 
     print("Progress: %d / %d (%.4f seconds)\n" % (epoch, n_epochs, t() - start))
 print("Training complete.\n")
