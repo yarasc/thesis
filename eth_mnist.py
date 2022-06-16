@@ -27,9 +27,9 @@ from utils import *
 
 seed = 0
 n_neurons = 100
-n_train = 500
+n_train = 4000
 n_epochs = 10
-n_test = 150
+n_test = 800
 n_clamp = 1
 exc = 22.5
 inh = 120
@@ -38,13 +38,13 @@ time = 200
 dt = 1.0
 intensity = 32
 progress_interval = 10
-update_interval = 25
+update_interval = 8
 train = True
 plot = False
 gpu = False
 device_id = 0
 
-width = 34#128  # 34
+width = 34  # 128  # 34
 kernel = 1
 # width = int(width/kernel)
 
@@ -63,7 +63,8 @@ else:
 torch.set_num_threads(os.cpu_count() - 1)
 print("Running on Device = ", device)
 
-update_interval = 8
+if not train:
+    update_interval = n_test
 
 n_sqrt = int(np.ceil(np.sqrt(n_neurons)))
 start_intensity = intensity
@@ -134,7 +135,7 @@ pool = torch.nn.MaxPool2d(kernel)
 print("\nBegin training.\n")
 
 start = t()
-train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+train_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction", "Target"])
 for epoch in range(n_epochs):
     labels = []
     pbar = tqdm(total=n_train)
@@ -174,6 +175,7 @@ for epoch in range(n_epochs):
                     # Compute layer-wise firing rate for this label.
                     acc_rates[:, i] = torch.sum(acc_spikes[:, indices_acc], 1) / n_assigns
             top3preds = torch.sort(acc_rates, dim=1, descending=True)[1][:, :3]
+            print(top3preds[:,0])
             top3acc = 0
             for i in range(len(label_tensor)):
                 # print(label_tensor[i], top3preds[i])
@@ -181,51 +183,23 @@ for epoch in range(n_epochs):
                     top3acc += 1
             top3acc /= len(label_tensor)
 
-            proportion_pred = proportion_weighting(
-                spikes=spike_record,
-                assignments=assignments,
-                proportions=proportions,
-                n_labels=n_classes,
-            )
+            proportion_pred = proportion_weighting(spikes=spike_record,assignments=assignments,proportions=proportions,n_labels=n_classes,)
             # Compute network accuracy according to available classification strategies.
             top1acc = torch.sum(label_tensor.long() == all_activity_pred).item() / len(label_tensor)
-            accuracy["top1"].append(
-                100
-                * top1acc
-            )
+            accuracy["top1"].append(100 * top1acc)
 
-            accuracy["top3"].append(
-                100 * top3acc
-            )
+            accuracy["top3"].append(100 * top3acc)
 
-            print(
-                "\nAll activity accuracy: %.2f (last), %.2f (average), %.2f (best)"
-                % (
-                    accuracy["top1"][-1],
-                    np.mean(accuracy["top1"]),
-                    np.max(accuracy["top1"]),
-                )
-            )
-            print(
-                "Top 3 accuracy: %.2f (last), %.2f (average), %.2f"
-                " (best)\n"
-                % (
-                    accuracy["top3"][-1],
-                    np.mean(accuracy["top3"]),
-                    np.max(accuracy["top3"]),
-                )
-            )
+            print("\nAll activity accuracy: %.2f (last), %.2f (average), %.2f (best)" % (
+            accuracy["top1"][-1], np.mean(accuracy["top1"]), np.max(accuracy["top1"]),))
+            print("Top 3 accuracy: %.2f (last), %.2f (average), %.2f (best)\n" % (
+            accuracy["top3"][-1], np.mean(accuracy["top3"]), np.max(accuracy["top3"]),))
 
             # Assign labels to excitatory layer neurons.
-            assignments, proportions, rates = assign_labels(
-                spikes=spike_record,
-                labels=label_tensor,
-                n_labels=n_classes,
-                rates=rates,
-            )
+            assignments, proportions, rates = assign_labels(spikes=spike_record,labels=label_tensor, n_labels=n_classes, rates=rates,)
 
-            x = [[epoch, step / 8, top1acc, top3acc]]
-            tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+            x = [[epoch, step / 8, top1acc, top3acc, label_tensor.numpy(),top3preds[:,0]]]
+            tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction","Target"])
             train_hist = pd.concat([train_hist, tmp_df])
 
             labels = []
@@ -262,8 +236,8 @@ network.train(mode=False)
 start = t()
 
 pbar = tqdm(total=n_test)
-epoch=0
-test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy",  "Top3"])
+epoch = 0
+test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction","Target"])
 for step, batch in enumerate(testloader):
     if step >= n_test:
         break
@@ -328,8 +302,8 @@ for step, batch in enumerate(testloader):
     top3acc /= len(label_tensor)
     top1acc /= len(label_tensor)
     # Compute network accuracy according to available classification strategies.
-    x = [[epoch, step / 8, top1acc, top3acc]]
-    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3"])
+    x = [[epoch, step / 8, top1acc, top3acc,label_tensor.numpy(),top3preds[:,0]]]
+    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction","Target"])
     test_hist = pd.concat([test_hist, tmp_df])
     print(tmp_df)
     labels = []
@@ -340,4 +314,3 @@ print("Proportion weighting accuracy: %.2f \n" % (accuracy["proportion"] / n_tes
 print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Testing complete.\n")
 test_hist.to_csv('test–mnist-cnn-binds.csv')
-
