@@ -179,6 +179,7 @@ for epoch in range(10):
         labels[i % update_interval] = label[0]
 
         # Run the network on the input.
+        # TODO is the clamp the supervisor??
         choice = np.random.choice(int(n_neurons / n_classes), size=n_clamp, replace=False)
         clamp = {"Ae": per_class * label.long() + torch.Tensor(choice).long()}
         if gpu:
