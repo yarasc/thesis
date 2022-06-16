@@ -5,9 +5,9 @@ require(dplyr)
 data_path <- "/Users/zeehondje/Documents/GitHub/thesis/"
 
 
-file <- "dvs–11-rnn-snntorch"
-file <- "dvs–11-cnn-snntorch"
-file <- "dvscnntmsetemp"
+file <- "10DVS–11-rnn-snntorch"
+file <- "10DVS–11-cnn-snntorch"
+file <- "10DVScnntmsetemp"
 file <- "–mnist-cnn-binds"
 
 
@@ -21,22 +21,24 @@ create_plot <- function(path, title){
   df_test$Phase <- "test"
   df <- rbind(df_train, df_test)
   
-  
   ## making the accuracy graph
   accuracy <- df %>%group_by(Phase, Epoch)%>% summarise(avg = mean(Accuracy),sd = sd(Accuracy))
   accuracy$se <- accuracy$sd
-  accuracy$se[accuracy$Phase=="train"] <- (accuracy$sd[accuracy$Phase=="train"]/sqrt(133))
-  accuracy$se[accuracy$Phase=="test"] <- (accuracy$sd[accuracy$Phase=="train"]/sqrt(30))
+  accuracy$se[accuracy$Phase=="train"] <- (accuracy$sd[accuracy$Phase=="train"]/max(df_train$Iteration))
+  accuracy$se[accuracy$Phase=="test"] <- (accuracy$sd[accuracy$Phase=="train"]/max(df_test$Iteration))
   
   top3 <- df %>%group_by(Phase, Epoch)%>% summarise(avg = mean(Top3),sd = sd(Top3))
-  top3$se <- (top3$sd/sqrt(133))
+  top3$se <- (top3$sd/max(df_train$Iteration))
   top3$se <- top3$sd
-  top3$se[top3$Phase=="train"] <- (top3$sd[top3$Phase=="train"]/sqrt(133))
-  top3$se[top3$Phase=="test"] <- (top3$sd[top3$Phase=="train"]/sqrt(30))
+  top3$se[top3$Phase=="train"] <- (top3$sd[top3$Phase=="train"]/max(df_train$Iteration))
+  top3$se[top3$Phase=="test"] <- (top3$sd[top3$Phase=="train"]/max(df_test$Iteration))
   
   accuracy$Top <- "1"
   top3$Top <- "3"
   sumy <- rbind(accuracy, top3)
+  
+  print(max(accuracy$avg[accuracy$Phase=="test"]))
+  print(max(top3$avg[top3$Phase=="test"]))
   
   
   ggplot(sumy, aes(x=Epoch, y=avg, color=Top, linetype = Phase)) + 
@@ -52,6 +54,7 @@ create_plot <- function(path, title){
   save_file <- paste("Documents/GitHub/thesis/", path, ".eps", sep = "")
   ggsave(file = save_file, device = "eps", width=14, height = 8, units="cm")
 }
+
 
 
 create_plot("Mnist1RnnCeB04", 
@@ -84,45 +87,65 @@ create_plot("MnistCnnMseB02",
 create_plot("MnistCnnMseB02", 
             "Learning MNIST with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.2")
 
-create_plot("Dvs1RnnCeB04", 
+create_plot("10DVS1RnnCeB04", 
             "Learning DVS Gesture with surrogate gradients \nRNN with no hidden layers \nLoss: CE, neuron decay = 0.4")
-create_plot("Dvs1RnnMSEB04", 
+create_plot("10DVS1RnnMSEB04", 
             "Learning DVS Gesture with surrogate gradients \nRNN with no hidden layers \nLoss: MSE, neuron decay = 0.4")
-create_plot("Dvs2RnnCeB04", 
+create_plot("10DVS2RnnCeB04", 
             "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: CE, neuron decay = 0.4")
-create_plot("Dvs2RnnMseB04", 
+create_plot("10DVS2RnnMseB04", 
             "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.4")
-create_plot("DvsCnnCeB04", 
+create_plot("10DVSCnnCeB04", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: CE, neuron decay = 0.4")
-create_plot("DvsCnnMseB04", 
+create_plot("10DVSCnnMseB04", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.4")
-create_plot("DvsCnnMseB04", 
+create_plot("10DVSCnnMseB04", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.4")
 
-create_plot("Dvs1RnnCeB02", 
+create_plot("10DVS1RnnCeB02", 
             "Learning DVS Gesture with surrogate gradients \nRNN with no hidden layers \nLoss: CE, neuron decay = 0.2")
-create_plot("Dvs1RnnMSEB02", 
+create_plot("10DVS1RnnMSEB02", 
             "Learning DVS Gesture with surrogate gradients \nRNN with no hidden layers \nLoss: MSE, neuron decay = 0.2")
-create_plot("Dvs2RnnCeB02", 
+create_plot("10DVS2RnnCeB02", 
             "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: CE, neuron decay = 0.2")
-create_plot("Dvs2RnnMseB02", 
+create_plot("10DVS2RnnMseB02", 
             "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.2")
-create_plot("DvsCnnCeB02", 
+create_plot("10DVSCnnCeB02", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: CE, neuron decay = 0.2")
-create_plot("DvsCnnMseB02", 
+create_plot("10DVSCnnMseB02", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.2")
-create_plot("DvsCnnMseB02", 
-            "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.2")
-
-create_plot("dvscnntmsetemp", 
+create_plot("10DVSCnnMseB02", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.2")
 
+create_plot("10DVScnntmsetemp", 
+            "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: MSE, neuron decay = 0.2")
 
-create_plot("DvsCnnMseB04F24_2", 
+
+create_plot("10DVSCnnMseB04F24_2", 
             "Learning DVS Gesture with surrogate gradients \nCNN \nLoss: CE, neuron decay = 0.4")
+create_plot("10Dvs2RnnMseB04_0", 
+            "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.2")
+
+create_plot("10Dvs2RnnMseB04_1", 
+            "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.2")
+
+create_plot("10Dvs2RnnMseB04_2", 
+            "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.2")
+
+create_plot("10Dvs2RnnMseB04_3", 
+            "Learning DVS Gesture with surrogate gradients \nRNN with one hidden layers \nLoss: MSE, neuron decay = 0.2")
+
+create_plot("MnistCnnMseB04", 
+            "Learning MNIST with surrogate gradients \nCNN with 500 iter. \nLoss: MSE, neuron decay = 0.4")
+
+create_plot("MnistCnnCeB04", 
+            "Learning MNIST with surrogate gradients \nCNN with 500 iter. \nLoss: MSE, neuron decay = 0.4")
 
 
-
+create_plot("Mnist2RnnMseB04", 
+            "Learning MNIST with surrogate gradients \nRNN with one hidden layer with 500 iter. \nLoss: MSE, neuron decay = 0.4")
+create_plot("Mnist2RnnCeB04", 
+            "Learning MNIST with surrogate gradients \nRNN with one hidden layer with 500 iter. \nLoss: CE, neuron decay = 0.4")
 
 # Export ggplot2 plot
 ## making the Loss graph
