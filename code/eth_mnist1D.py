@@ -71,14 +71,14 @@ start_intensity = intensity
 
 # Build network.
 network = DiehlAndCook2015(
-    n_inpt=int(width * width * 2 / (kernel * kernel)),
+    n_inpt=int(width * width * 1 / (kernel * kernel)),
     n_neurons=n_neurons,
     exc=exc,
     inh=inh,
     dt=dt,
     norm=78.4,
     theta_plus=theta_plus,
-    inpt_shape=(2, int(width / kernel), int(width / kernel)),
+    inpt_shape=(1, int(width / kernel), int(width / kernel)),
 )
 
 # Directs network to GPU
@@ -151,7 +151,9 @@ for epoch in range(n_epochs):
         # Get next input sample.
         image = pool(image.squeeze())
         image = torch.unsqueeze(image, 1)
-        inputs = {"X": image.reshape([image.size(0), 1, 2, int(width / kernel), int(width / kernel)])}
+        image = image.reshape([image.size(0), 1, 2, int(width / kernel), int(width / kernel)])
+        image = image[:,:,0,:,:]
+        inputs = {"X": image}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
 

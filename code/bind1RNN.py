@@ -20,22 +20,14 @@ n_neurons = 2 * 34 * 34
 n_classes = 10
 
 source_layer = Input(n=n_neurons, traces=True)
-hidden_layer = LIFNodes(n=n_neurons, traces=True)
 target_layer = LIFNodes(n=10, traces=True)
 
 # Connect the two layers.
 connection = Connection(
-    source=source_layer, target=hidden_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
+    source=source_layer, target=target_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
 )
-
-connection2 = Connection(
-    source=hidden_layer, target=target_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
-)
-
 # recurrent connections
-rec_connection = Connection(
-    source=hidden_layer, target=hidden_layer, update_rule=NoOp, nu=(1e-4, 1e-2), wmax=0.5, wmin=0.5
-)
+
 
 rec_connection2 = Connection(
     source=target_layer, target=target_layer, update_rule=NoOp, nu=(1e-4, 1e-2), wmax=0.5, wmin=0.5
@@ -47,11 +39,8 @@ monitor = Monitor(
 )
 
 network.add_layer(layer=source_layer, name="A")
-network.add_layer(layer=hidden_layer, name="B")
 network.add_layer(layer=target_layer, name="C")
-network.add_connection(connection=connection, source="A", target="B")
-network.add_connection(connection=connection2, source="B", target="C")
-network.add_connection(connection=rec_connection, source="B", target="B")
+network.add_connection(connection=connection, source="A", target="C")
 network.add_connection(connection=rec_connection2, source="C", target="C")
 network.add_monitor(monitor=monitor, name="C")
 
