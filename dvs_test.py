@@ -2,6 +2,7 @@ from net import *
 from utils import *
 from snntorch import surrogate
 
+
 """
 Feedforward NN with LIF
 based on Tutorial 7 SNNTorch
@@ -49,7 +50,7 @@ grad = surrogate.fast_sigmoid(slope=25) #default = 25, the higher the steeper th
 
 # Epochs & Iterations
 num_epochs = 10
-num_train = 500
+num_train = 133
 num_test = 30  # 15 => maximum amount of steps in DVS Gesture if batchsize 16
 
 """
@@ -57,19 +58,23 @@ Choose model (simple forward, or with RLeaky)
 """
 # net = FFNet(num_inputs, num_classes, beta, grad).to(device)
 # net = TwoFFNet(num_inputs, num_hidden, num_classes, beta, grad).to(device)
-net = RFFNet(num_inputs, num_classes, beta, grad).to(device)
-# net = CNNet(num_classes, beta, grad, batch_size).to(device)
+# net = RFFNet(num_inputs, num_classes, beta, grad).to(device)
+# net = TwoRFFNet(num_inputs, num_classes, beta, grad).to(device)
+net = CNNet(num_classes, beta, grad, batch_size, filter=32, kernel=2).to(device)
 
+summary(net, (2, 32, 32))
 optimizer = torch.optim.Adam(net.parameters(), lr=2e-2, betas=(0.9, 0.999))
 
 # Cross Entropy encourages the correct class to fire at all time steps,
 # and aims to suppress incorrect classes from firing
-#loss_fn = SF.ce_rate_loss() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
-loss_fn = ce_rate_loss_8() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
+# loss_fn = SF.ce_rate_loss() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
+# loss_fn = ce_rate_loss_8() # Cross Entropy Spike Rate Loss, applies the Cross Entropy function at every time step
 # loss_fn = SF.ce_count_loss() # Cross Entropy Spike Count Loss, accumulates spikes first & applies CE only once
 
 # loss_fn = SF.mse_membrane_loss()
-# loss_fn = SF.mse_count_loss(correct_rate=1, incorrect_rate=0.8)
+#loss_fn = SF.mse_temporal_loss(multi_spike=False, off_target=)
+loss_fn = SF.mse_count_loss(correct_rate=1, incorrect_rate=0.8
+                            )
 # default rate correct=1, incorrect=1, tutorial: 0.8,0.2 -> avoid dead neurones
 
 
@@ -100,16 +105,13 @@ for epoch in range(num_epochs):
         10 11: other gestures
         """
 
-        targets[targets == 5] = 4
-        targets[targets == 7] = 6
-
         net.train()
         # [timesteps, batchsize, channel, width, width]
         data = pool(data)
         # print(data.shape)
         data = data[:timesteps, ]
         # [timesteps, batchsize, channel, width/kernel, width/kernel]
-        data = flatten(data) #TODO if cnn take out flatten
+        # data = flatten(data) #TODO if cnn take out flatten
         # [timesteps, batchsize, channel * width * width]
         spk_rec = net(data)
         #print(data.shape)
@@ -136,7 +138,7 @@ for epoch in range(num_epochs):
         data = pool(data)
         # [timesteps, batchsize, channel, width/kernel, width/kernel]
         data = data[:timesteps, ]
-        data = flatten(data) #TODO if cnn take out flatten
+        # data = flatten(data) #TODO if cnn take out flatten
         # [timesteps, batchsize, channel * width * width]
 
         spk_rec = net(data)
@@ -154,5 +156,5 @@ for epoch in range(num_epochs):
     # for param in net.parameters():
     #     print(param.data)
 
-train_hist.to_csv('train–dvs–8-rnn-snntorch.csv')
-test_hist.to_csv('test–dvs–8-rnn-snntorch.csv')
+train_hist.to_csv('traindvscnntmsetemp.csv')
+test_hist.to_csv('testdvscnntmsetemp.csv')
