@@ -95,21 +95,23 @@ def evaluate(spk_rec, targets, t0, loss_val, epoch, i, train):
     batch_nr = 0
     top3 = 0
 
+    predictions = []
+
     for pred in spk_rec.sum(dim=0):
         _, idx3 = pred.topk(3)
+        _, idx1 = pred.topk(1)
+        predictions.append(int(idx1))
         # print(targets[batch_nr], idx1[batch_nr], idx3)
         if targets[batch_nr] in idx3:
             top3 += 1
         batch_nr += 1
     top3 /= batch_nr
-
     acc = SF.accuracy_rate(spk_rec, targets)
     # Store loss history for future plotting every 0.3 sec
     # _, idx = spk_rec.sum(dim=0).max(3)
 
-    x = [[epoch, i, acc, loss_val.item(), top3]]
-    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss", "Top3"])
-
+    x = [[epoch, i, acc, loss_val.item(), top3, predictions,targets.numpy()]]
+    tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Loss", "Top3", "Prediction", "Target"])
     print('{} s'.format(time.time() - t0), end=": ")
 
     if train:
