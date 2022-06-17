@@ -27,9 +27,9 @@ from utils import *
 
 seed = 0
 n_neurons = 100
-n_train = 4000
+n_train = 960#4000
 n_epochs = 10
-n_test = 800
+n_test = 15*8#800
 n_clamp = 1
 exc = 22.5
 inh = 120
@@ -44,11 +44,11 @@ plot = False
 gpu = False
 device_id = 0
 
-width = 34  # 128  # 34
-kernel = 1
+width = 128  # 34
+kernel = 4
 # width = int(width/kernel)
 
-trainloader, testloader = createMNISTDataloaders(1)
+trainloader, testloader = createDataloaders(1)
 
 # Sets up Gpu use
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -152,7 +152,7 @@ for epoch in range(n_epochs):
         image = pool(image.squeeze())
         image = torch.unsqueeze(image, 1)
         image = image.reshape([image.size(0), 1, 2, int(width / kernel), int(width / kernel)])
-        image = image[:,:,0,:,:]
+        image = image[:666,:,0,:,:]
         inputs = {"X": image}
         if gpu:
             inputs = {k: v.cuda() for k, v in inputs.items()}
@@ -192,7 +192,7 @@ for epoch in range(n_epochs):
             accuracy["top1"].append(100 * top1acc)
 
             accuracy["top3"].append(100 * top3acc)
-
+            print("Epoch",epoch)
             print("\nAll activity accuracy: %.2f (last), %.2f (average), %.2f (best)" % (
                 accuracy["top1"][-1], np.mean(accuracy["top1"]), np.max(accuracy["top1"]),))
             print("Top 3 accuracy: %.2f (last), %.2f (average), %.2f (best)\n" % (
@@ -226,7 +226,7 @@ for epoch in range(n_epochs):
 
 print("Progress: %d / %d (%.4f seconds)" % (1 + 1, n_epochs, t() - start))
 print("Training complete.\n")
-train_hist.to_csv('train–mnist-eth-binds1D.csv')
+train_hist.to_csv('trainDvsEthBinds1D.csv')
 
 # Sequence of accuracy estimates.
 accuracy = {"all": 0, "proportion": 0}
@@ -319,4 +319,4 @@ print("Proportion weighting accuracy: %.2f \n" % (accuracy["proportion"] / n_tes
 
 print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Testing complete.\n")
-test_hist.to_csv('test–mnist-eth-binds1D.csv')
+test_hist.to_csv('testDvsEthBinds1D.csv')
