@@ -202,7 +202,7 @@ for epoch in range(n_epochs):
             assignments, proportions, rates = assign_labels(spikes=spike_record, labels=label_tensor,
                                                             n_labels=n_classes, rates=rates, )
 
-            x = [[epoch, step / 8, top1acc, top3acc, label_tensor.numpy(), top3preds[:, 0]]]
+            x = [[epoch, step / 8, top1acc, top3acc, label_tensor.numpy(), top3preds[:, 0].numpy()]]
             tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction", "Target"])
             train_hist = pd.concat([train_hist, tmp_df])
 
@@ -226,7 +226,7 @@ for epoch in range(n_epochs):
 
 print("Progress: %d / %d (%.4f seconds)" % (1 + 1, n_epochs, t() - start))
 print("Training complete.\n")
-train_hist.to_csv('train–mnist-eth-binds.csv')
+train_hist.to_csv('train–mnist-eth-binds1D.csv')
 
 # Sequence of accuracy estimates.
 accuracy = {"all": 0, "proportion": 0}
@@ -248,7 +248,9 @@ for step, batch in enumerate(testloader):
     # Get next input sample.
     image = pool(batch[0].squeeze())
     image = torch.unsqueeze(image, 1)
-    inputs = {"X": image.view(image.size(0), 1, 2, int(width / kernel), int(width / kernel))}
+    image = image.reshape([image.size(0), 1, 2, int(width / kernel), int(width / kernel)])
+    image = image[:, :, 0, :, :]
+    inputs = {"X": image}
     if gpu:
         inputs = {k: v.cuda() for k, v in inputs.items()}
 
@@ -306,7 +308,7 @@ for step, batch in enumerate(testloader):
     top3acc /= len(label_tensor)
     top1acc /= len(label_tensor)
     # Compute network accuracy according to available classification strategies.
-    x = [[epoch, step / 8, top1acc, top3acc, label_tensor.numpy(), top3preds[:, 0]]]
+    x = [[epoch, step, top1acc, top3acc, label_tensor.numpy(), top3preds[:, 0].numpy()]]
     tmp_df = pd.DataFrame(x, columns=["Epoch", "Iteration", "Accuracy", "Top3", "Prediction", "Target"])
     test_hist = pd.concat([test_hist, tmp_df])
     print(tmp_df)
@@ -317,4 +319,4 @@ print("Proportion weighting accuracy: %.2f \n" % (accuracy["proportion"] / n_tes
 
 print("Progress: %d / %d (%.4f seconds)" % (epoch + 1, n_epochs, t() - start))
 print("Testing complete.\n")
-test_hist.to_csv('test–mnist-cnn-binds.csv')
+test_hist.to_csv('test–mnist-eth-binds1D.csv')
