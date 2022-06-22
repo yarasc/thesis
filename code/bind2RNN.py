@@ -14,20 +14,28 @@ network = Network()
 # population, and the other, the "target population".
 # Neurons involved in certain learning rules must record synaptic
 # traces, a vector of short-term memories of the last emitted spikes.
-
+channels=2
 device = "cpu"
-n_neurons = 2 * 34 * 34
+n_neurons = channels * 34 * 34
 n_classes = 10
 
 source_layer = Input(n=n_neurons, traces=True)
+hidden_layer = LIFNodes(n=n_neurons, traces=True)
 target_layer = LIFNodes(n=10, traces=True)
 
 # Connect the two layers.
 connection = Connection(
-    source=source_layer, target=target_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
+    source=source_layer, target=hidden_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
 )
-# recurrent connections
 
+connection2 = Connection(
+    source=hidden_layer, target=target_layer, update_rule=PostPre, nu=(1e-4, 1e-2)
+)
+
+# recurrent connections
+rec_connection = Connection(
+    source=hidden_layer, target=hidden_layer, update_rule=NoOp, nu=(1e-4, 1e-2), wmax=0.5, wmin=0.5
+)
 
 rec_connection2 = Connection(
     source=target_layer, target=target_layer, update_rule=NoOp, nu=(1e-4, 1e-2), wmax=0.5, wmin=0.5
@@ -39,8 +47,11 @@ monitor = Monitor(
 )
 
 network.add_layer(layer=source_layer, name="A")
+network.add_layer(layer=hidden_layer, name="B")
 network.add_layer(layer=target_layer, name="C")
-network.add_connection(connection=connection, source="A", target="C")
+network.add_connection(connection=connection, source="A", target="B")
+network.add_connection(connection=connection2, source="B", target="C")
+network.add_connection(connection=rec_connection, source="B", target="B")
 network.add_connection(connection=rec_connection2, source="C", target="C")
 network.add_monitor(monitor=monitor, name="C")
 
@@ -68,8 +79,8 @@ for epoch in range(10):
 
         image = pool(image.squeeze())
         image = torch.unsqueeze(image, 1)
-        image = image[:200]
-        input = {"A": image.reshape([image.size(0), (2 * 34 * 34)])}
+        image = image[:200,:,(channels-1), :,:]
+        input = {"A": image.reshape([image.size(0), (channels * 34 * 34)])}
 
         if step % 8 == 0 and step > 0:
             # Convert the array of labels into a tensor
@@ -129,7 +140,7 @@ for epoch in range(10):
         if step >= 4001:
             labels = []
             break
-train_hist.to_csv('train–mnist-1rnn-binds.csv')
+train_hist.to_csv('train–mnist-2rnn-binds.csv')
 
 epoch = 0
 test_hist = pd.DataFrame(columns=["Epoch", "Iteration", "Accuracy", "Top3"])
@@ -190,4 +201,4 @@ for step, (image, label) in enumerate(testloader):
     if step >= 499:
         break
 
-test_hist.to_csv('test–mnist-1rnn-binds.csv')
+test_hist.to_csv('test–mnist-2rnn-binds.csv')
